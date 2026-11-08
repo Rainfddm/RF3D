@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>信用点充值 - 飞创维度</title>
+    <style>
+        :root {
+            --primary-color: #2a2a2a;
+            --secondary-color: #3a3a3a;
+            --accent-color: #4285f4;
+            --text-color: #ffffff;
+            --border-color: #555555;
+            --panel-bg: #333333;
+            --main-bg: #222222;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background-color: var(--main-bg);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: var(--primary-color);
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--text-color);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logout-btn {
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .logout-btn:hover {
+            background-color: #b71c1c;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        .recharge-panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 30px;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .recharge-title {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--accent-color);
+        }
+
+        .current-credit {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: var(--secondary-color);
+            border-radius: 5px;
+        }
+
+        .recharge-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .recharge-option {
+            background-color: var(--secondary-color);
+            border: 2px solid var(--border-color);
+            border-radius: 5px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .recharge-option:hover {
+            border-color: var(--accent-color);
+            background-color: rgba(66, 133, 244, 0.1);
+        }
+
+        .recharge-option.selected {
+            border-color: var(--accent-color);
+            background-color: rgba(66, 133, 244, 0.2);
+        }
+
+        .recharge-amount {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .recharge-price {
+            color: #4caf50;
+            font-size: 0.9rem;
+        }
+
+        .custom-recharge {
+            margin: 20px 0;
+        }
+
+        .custom-recharge input {
+            width: 100%;
+            padding: 10px;
+            background-color: #444;
+            color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .recharge-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        .recharge-btn:hover {
+            background-color: #3b77db;
+        }
+
+        .recharge-btn:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+
+        .back-btn {
+            margin-top: 15px;
+            background-color: #757575;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .back-btn:hover {
+            background-color: #616161;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            z-index: 1000;
+            min-width: 250px;
+        }
+
+        .notification.success {
+            background-color: #4caf50;
+        }
+
+        .notification.error {
+            background-color: #f44336;
+        }
+    </style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="header">
+        <div class="logo">飞创维度-连续纤维增强3D打印工艺平台</div>
+        <div class="user-info">
+            <span>信用点: <span id="credit-points">--</span></span>
+            <button class="logout-btn" id="logoutBtn">退出登录</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="recharge-panel">
+            <h2 class="recharge-title">信用点充值</h2>
+            
+            <div class="current-credit">
+                当前信用点: <span id="current-credit">--</span>
+            </div>
+            
+            <div class="recharge-options">
+                <div class="recharge-option" data-amount="10">
+                    <div class="recharge-amount">+10 点</div>
+                    <div class="recharge-price">¥ 1.00</div>
+                </div>
+                <div class="recharge-option" data-amount="50">
+                    <div class="recharge-amount">+50 点</div>
+                    <div class="recharge-price">¥ 4.50</div>
+                </div>
+                <div class="recharge-option" data-amount="100">
+                    <div class="recharge-amount">+100 点</div>
+                    <div class="recharge-price">¥ 8.00</div>
+                </div>
+                <div class="recharge-option" data-amount="500">
+                    <div class="recharge-amount">+500 点</div>
+                    <div class="recharge-price">¥ 35.00</div>
+                </div>
+            </div>
+            
+            <div class="custom-recharge">
+                <label for="custom-amount">自定义充值数量:</label>
+                <input type="number" id="custom-amount" placeholder="输入要充值的信用点数量" min="1">
+            </div>
+            
+            <button id="recharge-btn" class="recharge-btn">确认充值</button>
+            <button id="back-btn" class="back-btn">返回主页</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化
+            loadCreditPoints();
+            
+            // 获取DOM元素
+            const logoutBtn = document.getElementById('logoutBtn');
+            const creditPointsSpan = document.getElementById('credit-points');
+            const currentCreditSpan = document.getElementById('current-credit');
+            const rechargeOptions = document.querySelectorAll('.recharge-option');
+            const customAmountInput = document.getElementById('custom-amount');
+            const rechargeBtn = document.getElementById('recharge-btn');
+            const backBtn = document.getElementById('back-btn');
+            
+            let selectedAmount = 0;
+            
+            // 为登出按钮添加事件监听器
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async function() {
+                    try {
+                        const response = await fetch('/api/logout', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            }
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.status === 'success') {
+                            window.location.href = '/login';
+                        } else {
+                            alert('登出失败: ' + data.message);
+                        }
+                    } catch (error) {
+                        console.error('登出请求失败:', error);
+                        alert('登出请求失败: ' + error.message);
+                    }
+                });
+            }
+            
+            // 获取并显示信用点
+            async function loadCreditPoints() {
+                try {
+                    const response = await fetch('/api/get-credit-points');
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        creditPointsSpan.textContent = data.credit_points;
+                        currentCreditSpan.textContent = data.credit_points;
+                    } else {
+                        console.error('获取信用点失败:', data.message);
+                    }
+                } catch (error) {
+                    console.error('获取信用点请求失败:', error);
+                }
+            }
+            
+            // 为充值选项添加点击事件
+            rechargeOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    // 移除之前的选择样式
+                    rechargeOptions.forEach(opt => opt.classList.remove('selected'));
+                    
+                    // 添加当前选择样式
+                    this.classList.add('selected');
+                    
+                    // 设置选中的金额
+                    selectedAmount = parseInt(this.getAttribute('data-amount'));
+                    
+                    // 清空自定义输入框
+                    customAmountInput.value = '';
+                });
+            });
+            
+            // 为充值按钮添加点击事件
+            rechargeBtn.addEventListener('click', async function() {
+                let amountToRecharge = 0;
+                
+                // 检查是否选择了预设金额
+                if (selectedAmount > 0) {
+                    amountToRecharge = selectedAmount;
+                } 
+                // 检查是否输入了自定义金额
+                else if (customAmountInput.value && parseInt(customAmountInput.value) > 0) {
+                    amountToRecharge = parseInt(customAmountInput.value);
+                } 
+                // 没有选择任何金额
+                else {
+                    showNotification('请选择或输入充值金额', 'error');
+                    return;
+                }
+                
+                if (amountToRecharge <= 0) {
+                    showNotification('充值金额必须大于0', 'error');
+                    return;
+                }
+                
+                // 禁用按钮并显示加载状态
+                rechargeBtn.disabled = true;
+                rechargeBtn.textContent = '处理中...';
+                
+                try {
+                    // 发送充值请求
+                    const response = await fetch('/api/recharge-credit', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ amount: amountToRecharge })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        showNotification(`充值成功！获得 ${amountToRecharge} 信用点`, 'success');
+                        
+                        // 更新信用点显示
+                        creditPointsSpan.textContent = data.new_points;
+                        currentCreditSpan.textContent = data.new_points;
+                        
+                        // 清空选择
+                        rechargeOptions.forEach(opt => opt.classList.remove('selected'));
+                        customAmountInput.value = '';
+                        selectedAmount = 0;
+                    } else {
+                        showNotification('充值失败: ' + data.message, 'error');
+                    }
+                } catch (error) {
+                    console.error('充值请求失败:', error);
+                    showNotification('充值请求失败: ' + error.message, 'error');
+                } finally {
+                    // 恢复按钮状态
+                    rechargeBtn.disabled = false;
+                    rechargeBtn.textContent = '确认充值';
+                }
+            });
+            
+            // 为返回按钮添加点击事件
+            backBtn.addEventListener('click', function() {
+                window.location.href = '/';
+            });
+            
+            // 显示通知
+            function showNotification(message, type) {
+                // 移除现有的通知
+                const existingNotification = document.querySelector('.notification');
+                if (existingNotification) {
+                    existingNotification.remove();
+                }
+                
+                // 创建通知元素
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                
+                // 添加到页面
+                document.body.appendChild(notification);
+                
+                // 3秒后自动移除
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 3000);
+            }
+        });
+    </script>
+</body>
+</html>

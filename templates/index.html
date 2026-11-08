@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- Three.js 本地化（r160，最后一个 UMD 版，避免 CDN 依赖） -->
+    <script src="{{ url_for('static', filename='js/three.min.js') }}"></script>
+    <script>
+        window.THREE = THREE;
+    </script>
+    <script src="{{ url_for('static', filename='js/OrbitControls.js') }}"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞创维度 - 连续纤维增强3D打印工艺平台</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="header">
+        <div class="logo">飞创维度-连续纤维增强3D打印工艺平台</div>
+        <ul class="menu-bar">
+            <li>文件(F)</li>
+            <li>编辑(E)</li>
+            <li>切片(S)</li>
+            <li>视图(V)</li>
+            <li>模型(M)</li>
+            <li>修复(R)</li>
+            <li>打印和监控(P)</li>
+            <li>帮助(H)</li>
+        </ul>
+    </div>
+
+    <div class="toolbar" id="toolbar">
+        <button class="tool-btn">
+            <i class="fas fa-cut"></i>
+            <span>切割</span>
+        </button>
+        <button class="tool-btn">
+            <i class="fas fa-crosshairs"></i>
+            <span>支撑</span>
+        </button>
+        <button class="tool-btn">
+            <i class="fas fa-project-diagram"></i>
+            <span>修改器</span>
+        </button>
+        <button class="tool-btn">
+            <i class="fas fa-object-group"></i>
+            <span>收缩</span>
+        </button>
+        <button class="tool-btn">
+            <i class="fas fa-ruler-combined"></i>
+            <span>测量</span>
+        </button>
+        <button class="tool-btn">
+            <i class="fas fa-object-ungroup"></i>
+            <span>模型预览</span>
+        </button>
+        <button class="tool-btn">
+            <i class="fas fa-wrench"></i>
+            <span>修复</span>
+        </button>
+        <button class="tool-btn">
+            <i class="fas fa-network-wired"></i>
+            <span>远程连接</span>
+        </button>
+        <button class="tool-btn">
+            <i class="fas fa-microchip"></i>
+            <span>模板库</span>
+        </button>
+        <button class="tool-btn">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <span>飞创维度制造云</span>
+        </button>
+    </div>
+    
+    <!-- 移动端工具栏切换按钮 -->
+    <button class="mobile-toolbar-toggle" id="mobile-toolbar-toggle" style="display: none;">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <div class="main-container">
+        <div class="viewport">
+             <div class="model-view">
+                    <div class="model-placeholder" id="dropzone">
+                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                        <p>拖放STL、OBJ或3MF文件到此处</p>
+                        <input type="file" id="hidden-file-input" style="display:none;" accept=".stl,.obj,.3mf">  
+                        <p>或 <span style="color: var(--accent-color); cursor: pointer;" id="upload-trigger">点击上传</span></p>
+                    </div>
+                    <div id="model-container" style="width: 100%; height: 100%; display: none;"></div>
+                </div>
+            <div class="nlp-panel" id="nlp-panel">
+                 <div>
+                    <label for="nlp-input">使用自然语言描述您的打印需求:</label>
+                    <textarea id="nlp-input" class="nlp-input" rows="3" placeholder="例如: 创建一个用于无人机的高强度碳纤维增强螺旋桨，需要轻量化设计并承受高速旋转的应力..."></textarea>
+                    <button id="nlp-button" class="slice-btn" style="width: 100%">生成工艺方案</button>
+                </div>
+                <div class="nlp-suggestions">
+                    <p>快速选择:</p>
+                    <span class="suggestion">碳纤维增强</span>
+                    <span class="suggestion">玻璃纤维增强</span>
+                    <span class="suggestion">高强度结构</span>
+                    <span class="suggestion">轻量化设计</span>
+                    <span class="suggestion">防震减振</span>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ff0000;"></div>
+                    <span>内部填充</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ffcc00;"></div>
+                    <span>结构填充</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #00ff00;"></div>
+                    <span>连续纤维</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #0000ff;"></div>
+                    <span>支撑结构</span>
+                </div>
+            </div>
+
+            <div class="slider-container">
+                <div class="slider-header">
+                    <span>层数:</span>
+                    <input type="text" id="layer-count-display" value=" / 1000" style="width: 80px; text-align: center;" readonly>
+                </div>
+                <input type="range" min="1" max="1000" value="150" class="layer-slider" id="layer-slider">
+            </div>
+        </div>
+
+        <div class="right-panel" id="right-panel">
+            <div class="panel-header">
+                <span>准备切片</span>
+                <div>
+                    <i class="fas fa-ellipsis-h"></i>
+                    <i class="fas fa-question-circle"></i>
+                    <button id="toggle-panel"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+
+            <div class="panel-tabs">
+                <button class="panel-tab active">选择打印模板</button>
+                <button class="panel-tab">模型细节设置</button>
+                <button class="panel-tab">模型纤维增强</button>
+                <button class="panel-tab">顺序打印</button>
+            </div>
+
+            <div class="panel-content">
+                <div class="config-row">
+                    <div class="setting-icon">
+                        <i class="fas fa-print"></i>
+                    </div>
+                    <div class="setting-input">
+                        <select>
+                            <option>双喷-复合增强打印机</option>
+                            <option>六自由度打印机</option>
+                        </select>
+                    </div>
+                    <div class="setting-actions">
+                        <button><i class="fas fa-cog"></i></button>
+                        <button><i class="fas fa-chevron-down"></i></button>
+                    </div>
+                </div>
+
+                <div class="config-row">
+                    <div class="setting-icon">
+                        <i class="fas fa-cube"></i>
+                    </div>
+                    <div class="setting-input">
+                        <select>
+                            <option>PLA 1.7mm + 不锈钢1.1mm</option>
+                        </select>
+                    </div>
+                    <div class="setting-actions">
+                        <button><i class="fas fa-cog"></i></button>
+                        <button><i class="fas fa-chevron-down"></i></button>
+                    </div>
+                </div>
+
+                <div class="config-row">
+                    <div class="setting-icon">
+                        <i class="fas fa-sliders-h"></i>
+                    </div>
+                    <div class="setting-input">
+                        <select>
+                            <option>自适应层间规划</option>
+                        </select>
+                    </div>
+                    <div class="setting-actions">
+                        <button><i class="fas fa-cog"></i></button>
+                        <button><i class="fas fa-chevron-down"></i></button>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-header">质量</div>
+                    <div class="setting-row">
+                        <div class="setting-label">层高层厚</div>
+                        <div class="setting-value">
+                            <input type="number" id="layer-height" value="0.2000" step="0.01" min="0.01" max="1.0">
+                            <span>mm</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-header">壳体结构</div>
+                    <div class="setting-row">
+                        <div class="setting-label">壁厚壁层</div>
+                        <div class="setting-value">3.0</div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">顶底填充</div>
+                        <div class="setting-value">10 %</div>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-header">支撑结构</div>
+                    <div class="setting-row">
+                        <div class="setting-label">生成支撑结构</div>
+                        <div class="setting-value">无</div>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-header">连续纤维增强</div>
+                    <div class="setting-row">
+                        <div class="setting-label">纤维类型</div>
+                        <div class="setting-value">
+                            <select>
+                                <option>碳纤维</option>
+                                <option>玻璃纤维</option>
+                                <option>芳纶纤维</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">铺设方式</div>
+                        <div class="setting-value">
+                            <select>
+                                <option>轮廓增强</option>
+                                <option>网格增强</option>
+                                <option>各向同性</option>
+                                <option>自适应</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">增强层数</div>
+                        <div class="setting-value">
+                            <input type="number" value="5" min="1">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">纤维角度</div>
+                        <div class="setting-value">
+                            <input type="text" value="0°, 45°, 90°">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">纤维密度</div>
+                        <div class="setting-value">
+                            <input type="number" value="80" min="1" max="100">%
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <div class="setting-header">底板附加</div>
+                    <div class="setting-row">
+                        <div class="setting-label">底板附加</div>
+                        <div class="setting-value">仅使用brim</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bottom-bar">
+                <div>
+                    <button><i class="fas fa-plus"></i></button>
+                    <button><i class="fas fa-minus"></i></button>
+                    <button>编辑所有切片设置</button>
+                </div>
+                <button id="main-slice-btn" class="slice-btn">切片</button>
+                <div id="status"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-bar" style="justify-content: flex-start; font-size: 0.8rem;">
+        <div class="print-info">
+            <div class="info-row">打印时间: 2 小时, 53 分, 46 秒</div>
+            <div class="info-row">材料: 31.4 g / 3.59 m</div>
+            <div class="info-row">材料价格: ¥ 4.71</div>
+        </div>
+        <div id="ai-result" style="display:none; flex:1; margin:0 20px; padding:4px 12px; background:#2a2a2a; border-radius:6px; border-left:3px solid var(--accent-color); overflow-y:auto; max-height:48px; min-width:300px; line-height:1.4;">
+        </div>
+        <div style="margin-right: 15px;">信用点: 99% 剩余</div>
+    </div>
+
+        <script src="{{ url_for('static', filename='js/viewer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ai.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/slice.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

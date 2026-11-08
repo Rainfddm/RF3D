@@ -1,0 +1,200 @@
+openapi: 3.0.0
+info:
+  title: RF3D 连续纤维增强 3D 打印系统 API
+  description: |
+    打印管线（上传/切片/路径/GCode）+ AI 自然语言指令 + 账户与信用点。
+    错误响应采用 RFC 7807 兼容格式（含 status/message 与 type/title/detail）。
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000
+tags:
+  - name: pipeline
+    description: 打印管线
+  - name: ai
+    description: AI 终端
+  - name: auth
+    description: 认证
+  - name: credit
+    description: 信用点
+paths:
+  /upload-model:
+    post:
+      tags: [pipeline]
+      summary: 上传 3D 模型（STL/OBJ/3MF）
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [model_file]
+              properties:
+                model_file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: 上传成功，返回模型预览数据
+  /process-model:
+    post:
+      tags: [pipeline]
+      summary: 解析模型（仅预览，不落盘）
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [model_file]
+              properties:
+                model_file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: 返回 vertices/faces/bounds
+  /list-models:
+    get:
+      tags: [pipeline]
+      summary: 列出已上传的模型
+      responses:
+        "200":
+          description: 模型文件名列表
+  /run-slice:
+    post:
+      tags: [pipeline]
+      summary: 切片（内部自动加载最新 STL）
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                layer_height: { type: number, example: 0.2 }
+                first_layer_height: { type: number, example: 0.2 }
+                nozzle_diameter: { type: number, example: 0.8 }
+                filament_diameter: { type: number, example: 1.75 }
+                offset: { type: number, example: 0.8 }
+      responses:
+        "200":
+          description: 切片结果
+  /run-path-generation:
+    post:
+      tags: [pipeline]
+      summary: 生成连续路径（内部自动加载+切片）
+      responses:
+        "200":
+          description: 路径点数量
+  /generate-gcode:
+    post:
+      tags: [pipeline]
+      summary: 生成 GCode（内部自动加载+切片+路径）
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nozzle_diameter: { type: number }
+                filament_diameter: { type: number }
+                layer_height: { type: number }
+                extruder_temp: { type: number }
+                bed_temp: { type: number }
+      responses:
+        "200":
+          description: GCode 下载地址与文件信息
+  /ai-terminal:
+    post:
+      tags: [ai]
+      summary: 自然语言指令 → 结构化操作序列并执行
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [input]
+              properties:
+                input:
+                  type: string
+                  example: 切片并生成 GCode，层高 0.2mm
+      responses:
+        "200":
+          description: 操作序列与执行结果
+  /api/login:
+    post:
+      tags: [auth]
+      summary: 登录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: 登录结果
+  /api/register:
+    post:
+      tags: [auth]
+      summary: 注册
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, password]
+              properties:
+                username: { type: string }
+                email: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: 注册结果
+  /api/logout:
+    post:
+      tags: [auth]
+      summary: 退出登录
+      responses:
+        "200":
+          description: 退出结果
+  /api/check-session:
+    get:
+      tags: [auth]
+      summary: 检查登录状态
+      responses:
+        "200":
+          description: logged_in 布尔值
+  /api/get-credit-points:
+    get:
+      tags: [credit]
+      summary: 查询当前用户信用点
+      responses:
+        "200":
+          description: 信用点数
+  /api/deduct-credit:
+    post:
+      tags: [credit]
+      summary: 扣除 1 点信用点
+      responses:
+        "200":
+          description: 剩余点数
+  /api/recharge-credit:
+    post:
+      tags: [credit]
+      summary: 充值信用点
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount: { type: integer, example: 100 }
+      responses:
+        "200":
+          description: 新点数

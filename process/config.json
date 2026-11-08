@@ -1,0 +1,7 @@
+{
+    "start_gcode": "configs/start.gcode",
+    "end_gcode": "configs/end.gcode",
+    "printSpeed": 200,
+    "layer_height": 0.2,
+    "first_layer_height": 0.3
+  }

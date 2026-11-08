@@ -1,0 +1,46 @@
+# ── 密钥与本地配置 ──
+# 真实密钥只放本地 .env；仓库里只保留 .env.example
+.env
+.env.local
+*.pem
+*.key
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# ── 测试与覆盖率 ──
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# ── 运行时数据（可复现，不入库）──
+instance/
+uploads/*
+!uploads/.gitkeep
+
+# ── 日志与临时产物 ──
+*.log
+*.log.*
+*.tmp
+
+# ── AI 助手工作目录（会话记忆，不入库）──
+.workbuddy/
+.claude/
+.cursor/
+
+# ── 编辑器 / 系统 ──
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

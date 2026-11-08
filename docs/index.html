@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RF3D — 连续纤维增强 3D 打印工艺生成系统</title>
+<meta name="description" content="RF3D 把 STL 模型转换成连续纤维增强的打印路径与 GCode：切片、费马螺旋路径规划、GCode 生成，提供 Web 与桌面两个入口。">
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f7f8fa;
+    --bg-code: #f2f4f7;
+    --ink: #1a1d21;
+    --ink-soft: #555c66;
+    --line: #e3e6ea;
+    --accent: #c8442b;
+    --accent-soft: #fdf1ee;
+    --ok: #1f7a4d;
+    --warn: #9a6400;
+    --warn-soft: #fdf6e6;
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171a;
+      --bg-soft: #1b1f23;
+      --bg-code: #0f1215;
+      --ink: #e8eaed;
+      --ink-soft: #a7aeb8;
+      --line: #2b3138;
+      --accent: #ff7a5c;
+      --accent-soft: #2a1a16;
+      --ok: #6ddba0;
+      --warn: #edc36b;
+      --warn-soft: #2a2317;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 22px; }
+
+  /* ── 顶部 ── */
+  header {
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--bg-soft), var(--bg));
+  }
+  .hero { padding: 56px 0 40px; }
+  .badge {
+    display: inline-block; font-size: 12px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--accent);
+    background: var(--accent-soft); border: 1px solid var(--accent);
+    border-radius: 999px; padding: 3px 11px; margin-bottom: 18px;
+  }
+  h1 { font-size: clamp(28px, 4.4vw, 42px); line-height: 1.25; margin: 0 0 14px; letter-spacing: -.01em; }
+  h1 .accent { color: var(--accent); }
+  .lede { font-size: 17px; color: var(--ink-soft); max-width: 660px; margin: 0 0 24px; }
+  .flow {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 13px; color: var(--ink-soft);
+  }
+  .flow span.node {
+    background: var(--bg-code); border: 1px solid var(--line);
+    border-radius: 6px; padding: 5px 10px; color: var(--ink);
+  }
+  .flow span.arrow { color: var(--accent); font-weight: 700; }
+
+  nav.toc {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav.toc ul {
+    list-style: none; margin: 0; padding: 12px 0;
+    display: flex; flex-wrap: wrap; gap: 18px; font-size: 14px;
+  }
+  nav.toc a { color: var(--ink-soft); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent); }
+
+  section { padding: 44px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: 0; }
+  h2 {
+    font-size: 22px; margin: 0 0 6px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2::before {
+    content: ""; width: 4px; height: 20px; border-radius: 2px;
+    background: var(--accent); display: inline-block;
+  }
+  .sub { color: var(--ink-soft); font-size: 14px; margin: 0 0 24px; }
+  h3 { font-size: 16px; margin: 28px 0 10px; }
+
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(212px, 1fr)); }
+  .card {
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px 18px; background: var(--bg-soft);
+  }
+  .card h4 { margin: 0 0 6px; font-size: 15px; }
+  .card p { margin: 0; font-size: 13.5px; color: var(--ink-soft); line-height: 1.65; }
+  .card .k { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; }
+  ol.steps > li {
+    counter-increment: s; position: relative;
+    padding: 0 0 22px 46px; border-left: 2px solid var(--line); margin-left: 14px;
+  }
+  ol.steps > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  ol.steps > li::before {
+    content: counter(s); position: absolute; left: -15px; top: -2px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  ol.steps strong { display: block; margin-bottom: 4px; }
+  ol.steps p { margin: 0 0 8px; font-size: 14px; color: var(--ink-soft); }
+
+  pre {
+    background: var(--bg-code); border: 1px solid var(--line);
+    border-radius: 8px; padding: 13px 15px; overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.7; margin: 8px 0 0;
+  }
+  code { font-family: var(--mono); font-size: .92em; }
+  p code, li code, td code {
+    background: var(--bg-code); border: 1px solid var(--line);
+    border-radius: 4px; padding: 1px 5px;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+  th { font-weight: 600; color: var(--ink-soft); font-size: 13px; background: var(--bg-soft); }
+  tbody tr:hover { background: var(--bg-soft); }
+  td.mono { font-family: var(--mono); font-size: 12.5px; }
+
+  .note {
+    border-left: 3px solid var(--warn); background: var(--warn-soft);
+    border-radius: 0 8px 8px 0; padding: 12px 16px; font-size: 13.5px;
+    color: var(--ink); margin: 16px 0 0;
+  }
+  .note strong { color: var(--warn); }
+  .pill {
+    display: inline-block; font-size: 11.5px; padding: 1px 8px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--ink-soft); background: var(--bg-code);
+  }
+  .pill.ok { color: var(--ok); border-color: var(--ok); }
+  .pill.warn { color: var(--warn); border-color: var(--warn); }
+
+  footer { padding: 34px 0 60px; color: var(--ink-soft); font-size: 13px; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap hero">
+    <div class="badge">Continuous Fiber Reinforced 3D Printing</div>
+    <h1>RF3D — 把 STL 变成<span class="accent">连续纤维增强</span>的打印路径与 GCode</h1>
+    <p class="lede">
+      面向纤维增强熔融沉积制造（FDM）的工艺生成平台：自动完成切片、费马螺旋路径规划、
+      区域间空走策略与 GCode 输出。同一套算法内核同时驱动 Web 服务与 Qt 桌面端，
+      保证两端生成的 GCode 一致。
+    </p>
+    <div class="flow">
+      <span class="node">STL / OBJ</span><span class="arrow">→</span>
+      <span class="node">切片</span><span class="arrow">→</span>
+      <span class="node">费马螺旋路径</span><span class="arrow">→</span>
+      <span class="node">路径精简</span><span class="arrow">→</span>
+      <span class="node">GCode</span>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <ul>
+      <li><a href="#features">核心特性</a></li>
+      <li><a href="#start">快速开始</a></li>
+      <li><a href="#usage">使用方法</a></li>
+      <li><a href="#params">工艺参数</a></li>
+      <li><a href="#cautions">注意事项</a></li>
+      <li><a href="#stack">技术栈</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="features">
+    <h2>核心特性</h2>
+    <p class="sub">都对应到可验证的代码路径，不是宣传语。</p>
+    <div class="grid">
+      <div class="card">
+        <h4>连续路径，减少空走</h4>
+        <p>轮廓经等值线处理后用费马螺旋连接成连续路径
+          <span class="k">gen_fermat_curve</span>，而非逐圈断开。</p>
+      </div>
+      <div class="card">
+        <h4>区域间空走不拉丝</h4>
+        <p>按区域分块生成，块间发 <span class="k">G0</span> 不挤出，并自动
+          <strong>回抽 → 空走 → 回填</strong>。</p>
+      </div>
+      <div class="card">
+        <h4>路径精简</h4>
+        <p>Douglas-Peucker，阈值取 <span class="k">max(nozzle_d×0.4, layer_height)</span>，
+          并保留几何关键点。</p>
+      </div>
+      <div class="card">
+        <h4>双端同一内核</h4>
+        <p>Web 与桌面共用 Qt-free 的 <span class="k">PipelineExecutor</span>，
+          同一模型输出一致。</p>
+      </div>
+      <div class="card">
+        <h4>AI 工艺助手</h4>
+        <p>自然语言 → 结构化操作序列：材料识别、参数推荐、物理约束校验后再执行。</p>
+      </div>
+      <div class="card">
+        <h4>参数单一真相源</h4>
+        <p>默认值只在 <span class="k">ProcessDecisionEngine.default_params</span> 定义，
+          Web 表单、桌面端初值、AI prompt 均由此渲染。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="start">
+    <h2>快速开始</h2>
+    <p class="sub">四步，顺序固定。需要 Python 3.10+（在 3.11 上验证）。</p>
+
+    <ol class="steps">
+      <li>
+        <strong>安装依赖</strong>
+        <p>建议用独立虚拟环境。</p>
+<pre>python -m venv .venv
+# Windows: .venv\Scripts\activate
+source .venv/bin/activate
+
+pip install -r requirements.txt</pre>
+      </li>
+      <li>
+        <strong>配置环境变量</strong>
+        <p>模板里只有占位符，真实密钥只放本地 <code>.env</code>（已被 <code>.gitignore</code> 排除）。</p>
+<pre>cp .env.example .env       # Windows: copy .env.example .env</pre>
+      </li>
+      <li>
+        <strong>初始化数据库</strong>
+        <p>创建 <code>user</code> 表。<strong>跳过这一步，注册/登录会报
+          <code>no such table: user</code>。</strong></p>
+<pre>python -m flask --app app db upgrade</pre>
+      </li>
+      <li>
+        <strong>启动</strong>
+        <p>默认 <code>http://localhost:5000</code>。</p>
+<pre>python app.py              # Web
+python -m suFabUI.main     # 桌面端</pre>
+      </li>
+    </ol>
+
+    <div class="note">
+      <strong>关于 src 布局：</strong>本项目 <code>suFabEngine/</code> 与 <code>suFabUI/</code>
+      使用 <code>src/</code> 布局。发布包的 <code>app.py</code> 会自动把两个 <code>src</code>
+      目录加入 <code>sys.path</code>，因此<strong>不需要</strong> <code>pip install -e</code>，
+      也不需要设置 <code>PYTHONPATH</code>。
+    </div>
+  </section>
+
+  <section id="usage">
+    <h2>使用方法</h2>
+
+    <h3>Web 界面</h3>
+    <p class="sub">注册 → 上传模型 → 设参数 → 切片 → 生成路径 → 下载 GCode；也可在 AI 终端直接用一句话描述需求。</p>
+
+    <h3>API 调用</h3>
+    <table>
+      <thead><tr><th>路由</th><th>方法</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">/upload-model</td><td>POST</td><td>上传模型（multipart），返回顶点/面片与 <code>file_path</code></td></tr>
+        <tr><td class="mono">/run-slice</td><td>POST</td><td>切片，返回真实层数 <code>layers</code></td></tr>
+        <tr><td class="mono">/run-path-generation</td><td>POST</td><td>生成路径，返回 <code>point_count</code></td></tr>
+        <tr><td class="mono">/generate-gcode</td><td>POST</td><td>生成 GCode，返回文件名与下载地址</td></tr>
+        <tr><td class="mono">/ai-terminal</td><td>POST</td><td>自然语言 → 操作序列并执行</td></tr>
+        <tr><td class="mono">/api/register · /api/login</td><td>POST</td><td>账户与会话</td></tr>
+        <tr><td class="mono">/uploads/&lt;path&gt;</td><td>GET</td><td>下载生成的 GCode</td></tr>
+        <tr><td class="mono">/docs</td><td>GET</td><td>接口说明页</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Python 直接调用引擎</h3>
+<pre>from suFabEngine.pipeline_executor import PipelineExecutor
+
+ex = PipelineExecutor()                     # 请求级实例，状态不跨请求共享
+ex.execute_cmd("load_model", file_path="uploads/model.stl")
+ex.execute_cmd("slice", layer_height=0.2, infill_density=30)
+path   = ex.execute_cmd("generate_path")    # (N,3) numpy 数组
+result = ex.execute_cmd("generate_gcode", speed=60, extruder_temp=200)
+print(result["gcode_filename"], result["download_url"])</pre>
+
+    <h3>AI 终端</h3>
+<pre>curl -X POST http://localhost:5000/ai-terminal \
+     -H "Content-Type: application/json" \
+     -d '{"input": "用碳纤维打印一个无人机螺旋桨，轻量化"}'</pre>
+    <p class="sub">链路：材料/场景识别 → 参数推荐注入 prompt → LLM 输出操作序列 → 物理约束校验 → 逐条执行。</p>
+  </section>
+
+  <section id="params">
+    <h2>工艺参数默认值</h2>
+    <p class="sub">定义在 <code>suAgent/process_decision_engine.py</code>，是全项目唯一真相源。</p>
+    <table>
+      <thead><tr><th>参数</th><th>默认值</th><th>含义</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">layer_height</td><td class="mono">0.2</td><td>层高 (mm)</td></tr>
+        <tr><td class="mono">first_layer_height</td><td class="mono">0.2</td><td>首层高度 (mm)</td></tr>
+        <tr><td class="mono">nozzle_d</td><td class="mono">0.8</td><td>喷嘴直径 (mm)</td></tr>
+        <tr><td class="mono">filament_d</td><td class="mono">1.75</td><td>耗材直径 (mm)</td></tr>
+        <tr><td class="mono">infill_density</td><td class="mono">30.0</td><td>填充密度 (%)</td></tr>
+        <tr><td class="mono">speed</td><td class="mono">60</td><td>打印速度 (mm/s)</td></tr>
+        <tr><td class="mono">extruder_temp</td><td class="mono">200</td><td>喷嘴温度 (°C)</td></tr>
+        <tr><td class="mono">bed_temp</td><td class="mono">60</td><td>热床温度 (°C)</td></tr>
+        <tr><td class="mono">offset</td><td class="mono">0.8</td><td>纤维沉积间距 (mm)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="cautions">
+    <h2>注意事项</h2>
+    <p class="sub">以下都是当前版本的真实状态，不是待办清单的包装。</p>
+    <table>
+      <thead><tr><th>项</th><th>现状</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>信用点体系</td>
+          <td><span class="pill warn">未强制</span> 充值无凭证校验、扣减接口前端未调用，仅作界面展示</td>
+        </tr>
+        <tr>
+          <td><code>/uploads/&lt;path&gt;</code></td>
+          <td><span class="pill warn">无归属鉴权</span> 知道文件名即可下载（文件名带 uuid 后缀降低可猜性）</td>
+        </tr>
+        <tr>
+          <td>桌面端长任务</td>
+          <td><span class="pill warn">主线程执行</span> 切片与 GCode 生成会阻塞界面</td>
+        </tr>
+        <tr>
+          <td>错误状态码</td>
+          <td>路由级业务错误返回 HTTP 200，前端依据响应体 <code>status</code> 判断</td>
+        </tr>
+        <tr>
+          <td>3MF 格式</td>
+          <td>依赖 VTK 的 IO3MF 模块；<strong>pip 安装的 VTK 未编译该模块</strong>，上传 3MF 会返回 400，请用 STL/OBJ</td>
+        </tr>
+        <tr>
+          <td>GPU 路径优化</td>
+          <td>桌面端部分优化器使用 PyTorch 且调用 <code>.cuda()</code>，需要 NVIDIA GPU</td>
+        </tr>
+        <tr>
+          <td>平台验证</td>
+          <td><span class="pill">仅 Windows 验证</span> Linux / macOS 未实测</td>
+        </tr>
+        <tr>
+          <td>依赖版本</td>
+          <td>Flask 2.3.3 / Werkzeug 2.3.7 属较早版本，升级前需回归</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      <strong>首次部署必做：</strong>设置 <code>FLASK_SECRET_KEY</code>。
+      未设置时每个进程会随机生成密钥，多 worker 部署会导致登录随机失效。
+    </div>
+  </section>
+
+  <section id="stack">
+    <h2>技术栈</h2>
+    <table>
+      <thead><tr><th>层</th><th>技术</th></tr></thead>
+      <tbody>
+        <tr><td>Web</td><td>Flask 2.3.3 · Flask-SQLAlchemy 3.0.5 · Flask-Migrate 4.1.0</td></tr>
+        <tr><td>几何 / 算法</td><td>VTK · NumPy · SciPy · pyclipper · shapely · scikit-learn</td></tr>
+        <tr><td>桌面</td><td>PyQt5 5.15.10 · VTK</td></tr>
+        <tr><td>前端</td><td>原生 JavaScript · Three.js</td></tr>
+        <tr><td>AI</td><td>OpenAI 兼容协议（DeepSeek / Moonshot）</td></tr>
+        <tr><td>测试</td><td>pytest · pytest-cov</td></tr>
+      </tbody>
+    </table>
+
+    <h3>目录结构（节选）</h3>
+<pre>.
+├── app.py                  # Web 入口（注入 src 路径 + 启动）
+├── application/            # Web 应用包（应用工厂 + 5 个蓝图）
+├── templates/ static/      # 页面与前端资源
+├── process/configs/        # start/end GCode 模板
+├── migrations/             # Alembic 迁移
+├── suFabEngine/src/
+│   ├── suFabEngine/        # Pipeline · pipeline_executor · suGCoder · ai_agent
+│   └── suAgent/            # 决策引擎 · 材料库 · 约束校验
+├── suFabUI/src/suFabUI/    # 桌面端（PyQt5）
+└── uploads/                # 运行时产物</pre>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    RF3D · 连续纤维增强 3D 打印工艺生成系统 ·
+    <span class="pill ok">专有软件，保留所有权利</span><br>
+    文档以仓库内 <code>README.md</code> 为准；本页为面向访客的概览。
+  </div>
+</footer>
+
+</body>
+</html>
