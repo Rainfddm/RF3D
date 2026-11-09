@@ -4,7 +4,7 @@
 
 覆盖 **模型加载 → 切片 → 费马螺旋路径规划 → GCode 输出** 全流程，提供 Web 与桌面两种入口。
 
-> 面向访客的项目介绍页：[`docs/index.html`](docs/index.html)（可直接作为 GitHub Pages 首页）。
+> 面向访客的项目介绍页：[`docs/index.html`](docs/index.html)。
 
 ---
 
